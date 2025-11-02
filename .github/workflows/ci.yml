@@ -22,25 +22,25 @@ jobs:
         with:
           python-version: "3.11"
 
-      # 3. Create virtualenv and install deps
+      # 3. Install dependencies
       - name: Install Python dependencies
         run: |
-            python -m venv venv
-            source venv/bin/activate
-            pip install --upgrade pip
-            pip install -r app/requirements.txt
+          python -m venv venv
+          source venv/bin/activate
+          pip install --upgrade pip
+          pip install -r app/requirements.txt
 
       # 4. Run pytest
       - name: Run unit tests
         run: |
-            source venv/bin/activate
-            pytest -q
+          source venv/bin/activate
+          pytest -q
 
-      # 5. Run Bandit (static code security)
+      # 5. Bandit scan
       - name: Run Bandit security scan
         run: |
-            source venv/bin/activate
-            bandit -r app -f json -o bandit-report.json || true
+          source venv/bin/activate
+          bandit -r app -f json -o bandit-report.json || true
 
       # 6. Upload Bandit report
       - name: Upload Bandit report
@@ -52,22 +52,21 @@ jobs:
       # 7. Build Docker image
       - name: Build Docker image
         run: |
-            docker build -t devsecops-pipeline:${{ github.sha }} .
+          docker build -t devsecops-pipeline:${{ github.sha }} .
 
-      # 8. Scan Docker image with Trivy (table output to console, SARIF to file)
+      # 8. Scan Docker image with Trivy (SARIF output)
       - name: Trivy vulnerability scan (HIGH/CRITICAL)
         uses: aquasecurity/trivy-action@0.28.0
         with:
           image-ref: "devsecops-pipeline:${{ github.sha }}"
-          format: "table"
           vuln-type: "os,library"
           severity: "HIGH,CRITICAL"
-          exit-code: "1"
           ignore-unfixed: true
-          output: "trivy-report.sarif"
+          exit-code: "1"
           format: "sarif"
+          output: "trivy-report.sarif"
 
-      # 9. Upload Trivy report even if previous step failed
+      # 9. Upload Trivy report
       - name: Upload Trivy report
         if: always()
         uses: actions/upload-artifact@v4
@@ -75,4 +74,3 @@ jobs:
           name: trivy-scan
           path: trivy-report.sarif
           if-no-files-found: ignore
-
